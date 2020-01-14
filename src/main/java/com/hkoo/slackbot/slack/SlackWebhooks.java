@@ -1,4 +1,4 @@
-package com.hkoo.slackbot;
+package com.hkoo.slackbot.slack;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
