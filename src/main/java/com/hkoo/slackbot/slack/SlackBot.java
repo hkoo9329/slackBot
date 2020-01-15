@@ -1,6 +1,6 @@
 package com.hkoo.slackbot.slack;
 
-import com.hkoo.slackbot.RestApi;
+import com.hkoo.slackbot.PLMatchApi;
 import lombok.extern.slf4j.Slf4j;
 import me.ramswaroop.jbot.core.common.Controller;
 import me.ramswaroop.jbot.core.common.EventType;
@@ -11,7 +11,6 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.web.socket.WebSocketSession;
@@ -26,7 +25,7 @@ import java.util.regex.Matcher;
 @Profile("slack")
 public class SlackBot extends Bot {
 
-    private RestApi restApi = new RestApi();
+    private PLMatchApi PLMatchApi = new PLMatchApi();
 
     private static final Logger logger = LoggerFactory.getLogger(SlackBot.class);
     private ZonedDateTime seoulDateTime;
@@ -64,43 +63,39 @@ public class SlackBot extends Bot {
 
     @Controller(pattern = "(프리미어리그)", next = "matchMenu")
     public void plMatchs(WebSocketSession session, Event event){
-        startConversation(event, "matchMenu");
-        reply(session, event, "프리미어경기에 대한 무슨 정보가 필요하신가요? \n 1. 최근 경기 \n 2.팀 경기 일정");
+        startConversation(event,"matchMenu");
+        reply(session, event, "프리미어경기에 대한 무슨 정보가 필요하신가요? \n 1. 최근 경기 \n 2. 이번주 경기 \n 3. 팀 경기 일정");
     }
     @Controller(next = "matchTeams")
     public void matchMenu(WebSocketSession session, Event event){
         if (event.getText().contains("최근 경기")) {
-            reply(session, event, plRecenteMatchs());
+            for (String match : PLMatchApi.getRecencyMatchs()) {
+                reply(session, event, match);
+            }
             stopConversation(event);
+        }else if (event.getText().contains("이번주")){
+            for (String match : PLMatchApi.getThisWeekMatchs()){
+                reply(session, event, match);
+            }
+            stopConversation(event);
+        }else if (event.getText().contains("팀 경기")){
+            startConversation(event,"matchTeams");
+            reply(session,event,"검색하고자 하는 팀을 입력해주세요. (ex. 토트넘)");
         }
         else{
-            reply(session,event,"help 명령어를 입력해주세요~");
+            reply(session,event,"명령어가 잘못되었습니다. 혹시 명령어를 알고 싶다면 'help'를  입력해주세요~");
             stopConversation(event);
         }
     }
-
-
-    public String plRecenteMatchs(){
-        JSONArray jsonArray = restApi.getRestApi("/matchs/recency");
-        StringBuilder builder = new StringBuilder();
-        try {
-            for (int i = 0; i < jsonArray.length(); i++) {
-                JSONObject jsonObject = jsonArray.getJSONObject(i);
-                String score = jsonObject.getString("score");
-                if (score.equals("null")){
-                    score="";
-                }
-                builder.append(jsonObject.getString("match_day")+" "
-                        +jsonObject.getString("left_team")+" "
-                        +score+" "
-                        +jsonObject.getString("right_team")+"\n"
-                );
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+    @Controller
+    public void matchTeams(WebSocketSession session, Event event){
+        String team = event.getText();
+        for (String match : PLMatchApi.getRecencyTeamMatchs(team)){
+            reply(session, event, match);
         }
-        return builder.toString();
+        stopConversation(event);
     }
+
     @Controller(pattern = "(오늘 날짜)")
     public void dayNow(WebSocketSession session, Event event){
         seoulDateTime = ZonedDateTime.now(ZoneId.of("Asia/Seoul"));
@@ -112,6 +107,17 @@ public class SlackBot extends Bot {
         seoulDateTime = ZonedDateTime.now(ZoneId.of("Asia/Seoul"));
         reply(session, event, seoulDateTime.format(DateTimeFormatter.ofPattern("HH시 mm분 ss초")));
     }
+    @Controller(pattern = "(help)(test)")
+    public void commandHelp(WebSocketSession session, Event event){
+        String helpComment = " '시간' : 현재 시간을 알려줍니다. \n" +
+                "'오늘 날짜' : 오늘의 날짜를 알려줍니다. \n" +
+                "'프리미어리그' : 프리미어리그 경기에 대한 명령어를 알려줍니다.\n" +
+                "'최근 경기' : 최근 프리미어리그 8경기를 알려줍니다.\n" +
+                "'이번주 경기' : 요번주 프리미어리그 경기 정보를 알려줍니다.\n" +
+                "'팀 경기 일정' : 최근 팀의 경기 정보를 알려줍니다.";
+        reply(session, event, helpComment);
+    }
+
 
 //    @Controller(pattern = "(setup meeting)", next = "confirmTiming")
 //    public void setupMeeting(WebSocketSession session, Event event) {
