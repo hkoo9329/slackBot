@@ -107,7 +107,7 @@ public class SlackBot extends Bot {
         seoulDateTime = ZonedDateTime.now(ZoneId.of("Asia/Seoul"));
         reply(session, event, seoulDateTime.format(DateTimeFormatter.ofPattern("HH시 mm분 ss초")));
     }
-    @Controller(pattern = "(help)(test)")
+    @Controller(pattern = "(help)")
     public void commandHelp(WebSocketSession session, Event event){
         String helpComment = " '시간' : 현재 시간을 알려줍니다. \n" +
                 "'오늘 날짜' : 오늘의 날짜를 알려줍니다. \n" +
